@@ -6,12 +6,14 @@ set -euo pipefail
 # parses Keep a Changelog sections, and outputs structured context JSON.
 # ─────────────────────────────────────────────────────────────────────────────
 
-if [[ -z "${GITHUB_EVENT_PATH:-}" ]]; then
+EVENT_FILE="${RELEASE_EVENT_PATH:-${GITHUB_EVENT_PATH:-}}"
+
+if [[ -z "$EVENT_FILE" ]]; then
   echo "::error::GITHUB_EVENT_PATH is not set. This script must run inside a GitHub Actions workflow."
   exit 1
 fi
 
-EVENT=$(cat "$GITHUB_EVENT_PATH")
+EVENT=$(cat "$EVENT_FILE")
 
 # ── Extract release fields ────────────────────────────────────────────────────
 TAG=$(echo "$EVENT" | jq -r '.release.tag_name // ""')
