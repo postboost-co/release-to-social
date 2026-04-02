@@ -27,7 +27,7 @@ if [[ "$ACCOUNTS_COUNT" == "0" ]]; then
   exit 0
 fi
 
-RELEASE_CONTEXT="${RELEASE_CONTEXT:-{}}"
+RELEASE_CONTEXT=$(cat /tmp/release-social-context.json 2>/dev/null || echo '{}')
 TAG=$(echo "$RELEASE_CONTEXT" | jq -r '.tag // ""')
 PRODUCT_NAME=$(echo "$RELEASE_CONTEXT" | jq -r '.product_name // ""')
 RELEASE_URL=$(echo "$RELEASE_CONTEXT" | jq -r '.release_url // ""')

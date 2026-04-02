@@ -29,11 +29,11 @@ else
   exit 1
 fi
 
-RELEASE_CONTEXT="${RELEASE_CONTEXT:-}"
-if [[ -z "$RELEASE_CONTEXT" ]]; then
+if [[ ! -f /tmp/release-social-context.json ]]; then
   echo "::error::No release context found. parse-release.sh may have failed."
   exit 1
 fi
+RELEASE_CONTEXT=$(cat /tmp/release-social-context.json)
 
 POSTBOOST_BASE="https://postboost.co/app/api"
 
