@@ -11,7 +11,6 @@ set -euo pipefail
 SKIP=$(grep "^skip=" "$GITHUB_OUTPUT" 2>/dev/null | tail -1 | cut -d= -f2 || echo "false")
 if [[ "$SKIP" == "true" ]]; then
   echo "Skipping content generation (pre-release tag)."
-  { echo "generated_content="; echo "accounts_json=[]"; } >> "$GITHUB_OUTPUT"
   exit 0
 fi
 
@@ -78,7 +77,7 @@ echo "Found $AUTHORIZED_COUNT connected account(s)."
 
 if [[ "$AUTHORIZED_COUNT" == "0" ]]; then
   echo "::warning::No accounts found in this PostBoost workspace. Connect social accounts in the PostBoost dashboard."
-  { echo "generated_content="; echo "accounts_json=[]"; } >> "$GITHUB_OUTPUT"
+  true  # temp files absent signals skip to post step
   exit 0
 fi
 
@@ -108,7 +107,7 @@ echo "Targeting $TARGET_COUNT account(s) after filtering."
 
 if [[ "$TARGET_COUNT" == "0" ]]; then
   echo "::warning::No authorized accounts remain after applying platform filters. Adjust the platforms/exclude_platforms inputs."
-  { echo "generated_content="; echo "accounts_json=[]"; } >> "$GITHUB_OUTPUT"
+  true  # temp files absent signals skip to post step
   exit 0
 fi
 
@@ -317,15 +316,12 @@ while IFS= read -r account; do
 done < <(echo "$ACCOUNTS_WITH_LIMITS_FULL" | jq -c '.[]')
 
 # ── Step 7: Write outputs ─────────────────────────────────────────────────────
-GENERATED_CONTENT_SINGLE=$(echo "$VALIDATED_JSON" | jq -c '.')
-ACCOUNTS_JSON_SINGLE=$(echo "$ACCOUNTS_WITH_LIMITS_FULL" | jq -c '.')
+# Write JSON to temp files to avoid GitHub Actions expression parser corrupting
+# JSON that contains '}}' sequences.
+echo "$VALIDATED_JSON" | jq -c '.' > /tmp/release-social-content.json
+echo "$ACCOUNTS_WITH_LIMITS_FULL" | jq -c '.' > /tmp/release-social-accounts.json
 
 SUMMARY=$(echo "$VALIDATED_JSON" | jq -r '.summary // "Release generated"')
 echo "Summary: $SUMMARY"
-
-{
-  echo "generated_content=$GENERATED_CONTENT_SINGLE"
-  echo "accounts_json=$ACCOUNTS_JSON_SINGLE"
-} >> "$GITHUB_OUTPUT"
 
 echo "Content generation complete."
