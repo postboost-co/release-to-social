@@ -17,7 +17,7 @@ inputs:
     required: false
     default: ''
   tone:
-    description: Writing tone for generated posts. Options: professional, casual, excited, technical, friendly.
+    description: "Writing tone for generated posts. Options: professional, casual, excited, technical, friendly."
     required: false
     default: professional
   platforms:
@@ -29,7 +29,7 @@ inputs:
     required: false
     default: ''
   scheduling_mode:
-    description: How to schedule posts. Options: now (publish immediately), queue (smart queue), scheduled (specific date/time).
+    description: "How to schedule posts. Options: now (publish immediately), queue (smart queue), scheduled (specific date/time)."
     required: false
     default: queue
   schedule_date:
@@ -45,7 +45,7 @@ inputs:
     required: false
     default: UTC
   hashtags:
-    description: Hashtag quantity preference. Options: none, few (1-3), some (3-5), many (5+).
+    description: "Hashtag quantity preference. Options: none, few (1-3), some (3-5), many (5+)."
     required: false
     default: few
   include_release_url:
