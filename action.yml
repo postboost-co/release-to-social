@@ -1,5 +1,8 @@
 name: Release to Social Media
-description: Publish GitHub Release notes to social media via Claude AI and PostBoost.
+description: Automatically post GitHub Release announcements to social media via Claude AI and PostBoost.
+branding:
+  icon: share-2
+  color: blue
 
 inputs:
   postboost_api_token:
