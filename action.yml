@@ -9,8 +9,13 @@ inputs:
     description: PostBoost workspace UUID (from the dashboard URL).
     required: true
   anthropic_api_key:
-    description: Anthropic API key for Claude (console.anthropic.com). Required for AI content generation.
-    required: true
+    description: Anthropic API key (console.anthropic.com). Use this or claude_code_oauth_token.
+    required: false
+    default: ''
+  claude_code_oauth_token:
+    description: Claude Code OAuth token from "claude setup-token". Use this or anthropic_api_key.
+    required: false
+    default: ''
   tone:
     description: "Writing tone for generated posts. Options: professional, casual, excited, technical, friendly."
     required: false
@@ -88,11 +93,17 @@ runs:
         RELEASE_EVENT_PATH: ${{ inputs.event_path }}
       run: bash "${{ github.action_path }}/scripts/parse-release.sh"
 
+    - name: Install Claude CLI (OAuth mode only)
+      if: inputs.claude_code_oauth_token != '' && inputs.anthropic_api_key == ''
+      shell: bash
+      run: npm install -g @anthropic-ai/claude-code --quiet
+
     - name: Generate content
       id: generate
       shell: bash
       env:
         ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_code_oauth_token }}
         POSTBOOST_API_TOKEN: ${{ inputs.postboost_api_token }}
         WORKSPACE_UUID: ${{ inputs.workspace_uuid }}
         TONE: ${{ inputs.tone }}
