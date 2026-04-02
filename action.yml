@@ -120,8 +120,6 @@ runs:
       env:
         POSTBOOST_API_TOKEN: ${{ inputs.postboost_api_token }}
         WORKSPACE_UUID: ${{ inputs.workspace_uuid }}
-        GENERATED_CONTENT: ${{ steps.generate.outputs.generated_content }}
-        ACCOUNTS_JSON: ${{ steps.generate.outputs.accounts_json }}
         RELEASE_CONTEXT: ${{ steps.parse.outputs.release_context }}
         SCHEDULING_MODE: ${{ inputs.scheduling_mode }}
         SCHEDULE_DATE: ${{ inputs.schedule_date }}

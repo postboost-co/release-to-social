@@ -10,12 +10,15 @@ echo "::add-mask::$POSTBOOST_API_TOKEN"
 
 POSTBOOST_BASE="https://postboost.co/app/api"
 
-# No-op if previous steps signalled skip or no content
-if [[ -z "${GENERATED_CONTENT:-}" || -z "${ACCOUNTS_JSON:-}" ]]; then
+# Read JSON from temp files written by generate-content.sh
+if [[ ! -f /tmp/release-social-content.json || ! -f /tmp/release-social-accounts.json ]]; then
   echo "::notice::No generated content found. Skipping PostBoost post creation."
   echo "post_uuid=" >> "$GITHUB_OUTPUT"
   exit 0
 fi
+
+GENERATED_CONTENT=$(cat /tmp/release-social-content.json)
+ACCOUNTS_JSON=$(cat /tmp/release-social-accounts.json)
 
 ACCOUNTS_COUNT=$(echo "$ACCOUNTS_JSON" | jq 'length')
 if [[ "$ACCOUNTS_COUNT" == "0" ]]; then
