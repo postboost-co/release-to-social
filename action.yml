@@ -8,14 +8,9 @@ inputs:
   workspace_uuid:
     description: PostBoost workspace UUID (from the dashboard URL).
     required: true
-  claude_code_oauth_token:
-    description: Claude Code OAuth token. Recommended auth method. Either this or anthropic_api_key is required.
-    required: false
-    default: ''
   anthropic_api_key:
-    description: Anthropic API key for Claude. Alternative to claude_code_oauth_token.
-    required: false
-    default: ''
+    description: Anthropic API key for Claude (console.anthropic.com). Required for AI content generation.
+    required: true
   tone:
     description: "Writing tone for generated posts. Options: professional, casual, excited, technical, friendly."
     required: false
@@ -97,7 +92,6 @@ runs:
       id: generate
       shell: bash
       env:
-        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_code_oauth_token }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
         POSTBOOST_API_TOKEN: ${{ inputs.postboost_api_token }}
         WORKSPACE_UUID: ${{ inputs.workspace_uuid }}

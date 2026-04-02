@@ -15,19 +15,15 @@ if [[ "$SKIP" == "true" ]]; then
 fi
 
 # Mask secrets so they never appear in logs
-[[ -n "${ANTHROPIC_API_KEY:-}" ]] && echo "::add-mask::$ANTHROPIC_API_KEY"
-[[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]] && echo "::add-mask::$CLAUDE_CODE_OAUTH_TOKEN"
+echo "::add-mask::$ANTHROPIC_API_KEY"
 echo "::add-mask::$POSTBOOST_API_TOKEN"
 
-# Resolve which Claude auth method to use (OAuth token takes priority)
-if [[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]]; then
-  CLAUDE_AUTH_HEADER="Authorization: Bearer $CLAUDE_CODE_OAUTH_TOKEN"
-elif [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
-  CLAUDE_AUTH_HEADER="x-api-key: $ANTHROPIC_API_KEY"
-else
-  echo "::error::No Claude authentication provided. Set either claude_code_oauth_token or anthropic_api_key."
+if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+  echo "::error::ANTHROPIC_API_KEY is not set. Add it as a repository secret."
   exit 1
 fi
+
+CLAUDE_AUTH_HEADER="x-api-key: $ANTHROPIC_API_KEY"
 
 if [[ ! -f /tmp/release-social-context.json ]]; then
   echo "::error::No release context found. parse-release.sh may have failed."

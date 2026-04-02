@@ -21,23 +21,12 @@ Features:
 
 **PostBoost workspace UUID.** Open the PostBoost dashboard. The UUID is in the URL: `https://postboost.co/app/YOUR-UUID-HERE/posts`.
 
-**Claude auth token.** You need one of these two (OAuth token is recommended):
-
-**Option A — Claude Code OAuth token (recommended)**
-
-This is the token Claude Code uses under the hood. No Anthropic account billing setup required — it draws from your Claude subscription.
-
-1. Install Claude Code: `npm install -g @anthropic-ai/claude-code`
-2. Run `claude` and complete the login flow
-3. The OAuth token is stored at `~/.claude/.credentials.json` under the `claudeAiOauth` key
-4. Copy the `access_token` value and add it as the `CLAUDE_CODE_OAUTH_TOKEN` secret in your repo
-
-**Option B — Anthropic API key**
-
-Standard pay-per-token API access. Claude Sonnet uses roughly 1,000-2,000 tokens per release announcement (~$0.003-0.006 per run).
+**Anthropic API key.** This action calls the Anthropic Messages API directly, which requires an API key. OAuth tokens (including those from `claude setup-token`) do not work for direct API calls — Anthropic only supports them when using the Claude Code CLI itself.
 
 1. Go to console.anthropic.com → API Keys → Create Key
 2. Add it as the `ANTHROPIC_API_KEY` secret in your repo
+
+Cost: Claude Sonnet uses roughly 1,000-2,000 tokens per release announcement (~$0.003-0.006 per run).
 
 ### 2. Add secrets to your repository
 
@@ -45,7 +34,7 @@ In your repo, go to Settings → Secrets and variables → Actions → New repos
 
 - `POSTBOOST_API_TOKEN`
 - `POSTBOOST_WORKSPACE_UUID`
-- `CLAUDE_CODE_OAUTH_TOKEN` (or `ANTHROPIC_API_KEY`)
+- `ANTHROPIC_API_KEY`
 
 ### 3. Connect social accounts
 
@@ -157,7 +146,7 @@ The job summary shows all generated content and the exact API payload that would
 ## Requirements
 
 - A PostBoost account with at least one connected social media account
-- A Claude Code OAuth token (recommended) or an Anthropic API key
+- An Anthropic API key (console.anthropic.com)
 - Runs on `ubuntu-latest` (uses `curl` and `jq`, both pre-installed on GitHub-hosted runners)
 
 ## Outputs
