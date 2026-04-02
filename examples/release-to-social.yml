@@ -13,9 +13,7 @@ jobs:
           # Required secrets — add these in your repo's Settings > Secrets
           postboost_api_token: ${{ secrets.POSTBOOST_API_TOKEN }}
           workspace_uuid: ${{ secrets.POSTBOOST_WORKSPACE_UUID }}
-          # Claude auth — use one of the two options:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
           # Optional: customize tone and content
           # tone: professional            # professional, casual, excited, technical, friendly
