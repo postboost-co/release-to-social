@@ -197,7 +197,6 @@ SYSTEM_PROMPT=$(cat "$ACTION_PATH/prompts/system.txt")
 
 call_claude() {
   local user_prompt="$1"
-  # Build JSON payload safely with jq
   local payload
   payload=$(jq -n \
     --arg model "claude-sonnet-4-20250514" \
@@ -210,16 +209,30 @@ call_claude() {
       messages: [{ role: "user", content: $user }]
     }')
 
-  curl -sf \
+  # Capture both body and HTTP status code
+  local response http_status
+  response=$(curl -s -w "\n__HTTP_STATUS__%{http_code}" \
     -X POST "https://api.anthropic.com/v1/messages" \
     -H "$CLAUDE_AUTH_HEADER" \
     -H "anthropic-version: 2023-06-01" \
     -H "content-type: application/json" \
-    -d "$payload"
+    -d "$payload" 2>&1) || { echo "CURL_FAILED"; return; }
+
+  http_status=$(echo "$response" | grep -o '__HTTP_STATUS__[0-9]*' | grep -o '[0-9]*')
+  local body
+  body=$(echo "$response" | sed 's/__HTTP_STATUS__[0-9]*$//')
+
+  if [[ "$http_status" != "200" ]]; then
+    echo "::warning::Claude API returned HTTP $http_status: $body" >&2
+    echo "CURL_FAILED"
+    return
+  fi
+
+  echo "$body"
 }
 
 echo "Calling Claude API to generate content..."
-CLAUDE_RESPONSE=$(call_claude "$USER_PROMPT" || echo "CURL_FAILED")
+CLAUDE_RESPONSE=$(call_claude "$USER_PROMPT")
 
 if [[ "$CLAUDE_RESPONSE" == "CURL_FAILED" ]]; then
   echo "::warning::Claude API call failed. Falling back to template content."
