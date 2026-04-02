@@ -15,15 +15,21 @@ if [[ "$SKIP" == "true" ]]; then
 fi
 
 # Mask secrets so they never appear in logs
-echo "::add-mask::$ANTHROPIC_API_KEY"
+[[ -n "${ANTHROPIC_API_KEY:-}" ]] && echo "::add-mask::$ANTHROPIC_API_KEY"
+[[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]] && echo "::add-mask::$CLAUDE_CODE_OAUTH_TOKEN"
 echo "::add-mask::$POSTBOOST_API_TOKEN"
 
-if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
-  echo "::error::ANTHROPIC_API_KEY is not set. Add it as a repository secret."
+# Determine which auth mode to use
+if [[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]]; then
+  CLAUDE_MODE="cli"
+  echo "Using Claude CLI with OAuth token."
+elif [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+  CLAUDE_MODE="api"
+  echo "Using Anthropic API with API key."
+else
+  echo "::error::No Claude auth provided. Set anthropic_api_key or claude_code_oauth_token."
   exit 1
 fi
-
-CLAUDE_AUTH_HEADER="x-api-key: $ANTHROPIC_API_KEY"
 
 if [[ ! -f /tmp/release-social-context.json ]]; then
   echo "::error::No release context found. parse-release.sh may have failed."
@@ -191,31 +197,24 @@ Replace ACCOUNT_ID with the numeric account ID. Include an entry for every accou
 # ── Step 4: Call Claude API ───────────────────────────────────────────────────
 SYSTEM_PROMPT=$(cat "$ACTION_PATH/prompts/system.txt")
 
-call_claude() {
+call_claude_api() {
   local user_prompt="$1"
   local payload
   payload=$(jq -n \
     --arg model "claude-sonnet-4-20250514" \
     --arg system "$SYSTEM_PROMPT" \
     --arg user "$user_prompt" \
-    '{
-      model: $model,
-      max_tokens: 4096,
-      system: $system,
-      messages: [{ role: "user", content: $user }]
-    }')
+    '{model: $model, max_tokens: 4096, system: $system, messages: [{role: "user", content: $user}]}')
 
-  # Capture both body and HTTP status code
-  local response http_status
+  local response http_status body
   response=$(curl -s -w "\n__HTTP_STATUS__%{http_code}" \
     -X POST "https://api.anthropic.com/v1/messages" \
-    -H "$CLAUDE_AUTH_HEADER" \
+    -H "x-api-key: $ANTHROPIC_API_KEY" \
     -H "anthropic-version: 2023-06-01" \
     -H "content-type: application/json" \
     -d "$payload" 2>&1) || { echo "CURL_FAILED"; return; }
 
   http_status=$(echo "$response" | grep -o '__HTTP_STATUS__[0-9]*' | grep -o '[0-9]*')
-  local body
   body=$(echo "$response" | sed 's/__HTTP_STATUS__[0-9]*$//')
 
   if [[ "$http_status" != "200" ]]; then
@@ -224,25 +223,53 @@ call_claude() {
     return
   fi
 
-  echo "$body"
+  # Extract text from Messages API response envelope
+  echo "$body" | jq -r '.content[0].text // ""'
 }
 
-echo "Calling Claude API to generate content..."
-CLAUDE_RESPONSE=$(call_claude "$USER_PROMPT")
+call_claude_cli() {
+  local user_prompt="$1"
+  # Write full prompt (system + user) to a temp file to avoid shell quoting issues
+  local prompt_file
+  prompt_file=$(mktemp)
+  printf '%s\n\n%s' "$SYSTEM_PROMPT" "$user_prompt" > "$prompt_file"
 
-if [[ "$CLAUDE_RESPONSE" == "CURL_FAILED" ]]; then
-  echo "::warning::Claude API call failed. Falling back to template content."
+  local result
+  result=$(CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
+    claude -p "$(cat "$prompt_file")" \
+      --model claude-sonnet-4-20250514 \
+      --max-tokens 4096 \
+      --output-format text 2>&1) || { rm -f "$prompt_file"; echo "CURL_FAILED"; return; }
+
+  rm -f "$prompt_file"
+
+  if echo "$result" | grep -qi "error\|authentication\|unauthorized"; then
+    echo "::warning::Claude CLI returned an error: $result" >&2
+    echo "CURL_FAILED"
+    return
+  fi
+
+  echo "$result"
+}
+
+echo "Calling Claude to generate content..."
+if [[ "$CLAUDE_MODE" == "cli" ]]; then
+  CLAUDE_RESPONSE=$(call_claude_cli "$USER_PROMPT")
+else
+  CLAUDE_RESPONSE=$(call_claude_api "$USER_PROMPT")
+fi
+
+if [[ "$CLAUDE_RESPONSE" == "CURL_FAILED" || -z "$CLAUDE_RESPONSE" ]]; then
+  echo "::warning::Claude call failed. Falling back to template content."
   CLAUDE_RESPONSE=""
 fi
 
 # ── Step 5: Parse and validate Claude's response ─────────────────────────────
 extract_json() {
   local raw="$1"
-  local text
-  text=$(echo "$raw" | jq -r '.content[0].text // ""')
-  # Strip markdown code fences if present
-  text=$(echo "$text" | sed 's/^```[a-z]*//;s/```$//' | sed '/^[[:space:]]*$/d')
-  echo "$text"
+  # CLI mode returns text directly; API mode already extracted text above.
+  # Strip markdown code fences if present.
+  echo "$raw" | sed 's/^```[a-z]*$//;s/^```$//' | sed '/^[[:space:]]*$/d'
 }
 
 AI_JSON=""
@@ -255,7 +282,11 @@ if [[ -n "$CLAUDE_RESPONSE" ]]; then
     RETRY_PROMPT="The previous response was not valid JSON. Return only the JSON object described below with no markdown fences.
 
 $(echo "$USER_PROMPT" | tail -10)"
-    CLAUDE_RETRY=$(call_claude "$RETRY_PROMPT" || echo "CURL_FAILED")
+    if [[ "$CLAUDE_MODE" == "cli" ]]; then
+      CLAUDE_RETRY=$(call_claude_cli "$RETRY_PROMPT" || echo "CURL_FAILED")
+    else
+      CLAUDE_RETRY=$(call_claude_api "$RETRY_PROMPT" || echo "CURL_FAILED")
+    fi
     if [[ "$CLAUDE_RETRY" != "CURL_FAILED" ]]; then
       AI_TEXT=$(extract_json "$CLAUDE_RETRY")
       if echo "$AI_TEXT" | jq -e '.versions' > /dev/null 2>&1; then
