@@ -1,0 +1,39 @@
+name: Announce release on social media
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: postboost/release-to-social@v1
+        with:
+          # Required secrets — add these in your repo's Settings > Secrets
+          postboost_api_token: ${{ secrets.POSTBOOST_API_TOKEN }}
+          workspace_uuid: ${{ secrets.POSTBOOST_WORKSPACE_UUID }}
+          # Claude auth — use one of the two options:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Optional: customize tone and content
+          # tone: professional            # professional, casual, excited, technical, friendly
+          # hashtags: few                 # none, few (1-3), some (3-5), many (5+)
+          # product_name: ''              # defaults to the repository name
+          # custom_instructions: ''       # extra instructions for the AI prompt
+
+          # Optional: filter which platforms to post to
+          # platforms: 'twitter,linkedin' # comma-separated; empty = all connected accounts
+          # exclude_platforms: 'tiktok'   # platforms to skip
+
+          # Optional: scheduling
+          # scheduling_mode: queue        # now, queue, scheduled
+          # schedule_date: '2026-06-01'   # required if scheduling_mode is "scheduled"
+          # schedule_time: '10:00'        # 24-hour HH:MM
+          # schedule_timezone: UTC        # IANA timezone
+
+          # Optional: advanced
+          # include_release_url: 'true'   # whether to include the GitHub Release URL
+          # post_on_prerelease: 'false'   # set true to post for alpha/beta/rc tags
+          # dry_run: 'false'              # set true to preview content without posting

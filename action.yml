@@ -1,0 +1,127 @@
+name: Release to Social Media
+description: Publish GitHub Release notes to social media via Claude AI and PostBoost.
+
+inputs:
+  postboost_api_token:
+    description: Bearer token from PostBoost (Settings > Access Tokens).
+    required: true
+  workspace_uuid:
+    description: PostBoost workspace UUID (from the dashboard URL).
+    required: true
+  claude_code_oauth_token:
+    description: Claude Code OAuth token. Recommended auth method. Either this or anthropic_api_key is required.
+    required: false
+    default: ''
+  anthropic_api_key:
+    description: Anthropic API key for Claude. Alternative to claude_code_oauth_token.
+    required: false
+    default: ''
+  tone:
+    description: Writing tone for generated posts. Options: professional, casual, excited, technical, friendly.
+    required: false
+    default: professional
+  platforms:
+    description: Comma-separated list of platforms to include (e.g. "twitter,linkedin"). Empty means all connected accounts.
+    required: false
+    default: ''
+  exclude_platforms:
+    description: Comma-separated list of platforms to skip (e.g. "tiktok,youtube").
+    required: false
+    default: ''
+  scheduling_mode:
+    description: How to schedule posts. Options: now (publish immediately), queue (smart queue), scheduled (specific date/time).
+    required: false
+    default: queue
+  schedule_date:
+    description: Date for scheduled mode (YYYY-MM-DD). Required when scheduling_mode is "scheduled".
+    required: false
+    default: ''
+  schedule_time:
+    description: Time for scheduled mode (HH:MM, 24-hour format).
+    required: false
+    default: '10:00'
+  schedule_timezone:
+    description: IANA timezone for scheduled mode (e.g. America/New_York).
+    required: false
+    default: UTC
+  hashtags:
+    description: Hashtag quantity preference. Options: none, few (1-3), some (3-5), many (5+).
+    required: false
+    default: few
+  include_release_url:
+    description: Whether to include the GitHub Release URL in posts.
+    required: false
+    default: 'true'
+  dry_run:
+    description: Preview generated content without posting. Set to "true" to enable.
+    required: false
+    default: 'false'
+  product_name:
+    description: Override the product name used in posts. Defaults to the repository name.
+    required: false
+    default: ''
+  custom_instructions:
+    description: Additional instructions appended to the AI prompt (e.g. "always mention our free tier").
+    required: false
+    default: ''
+  post_on_prerelease:
+    description: Whether to post for pre-release tags (alpha, beta, rc). Defaults to false.
+    required: false
+    default: 'false'
+
+outputs:
+  post_uuid:
+    description: UUID of the created PostBoost post.
+    value: ${{ steps.post.outputs.post_uuid }}
+  release_tier:
+    description: Classified release tier (1=major/milestone, 2=minor, 3=patch, 4=prerelease).
+    value: ${{ steps.parse.outputs.release_tier }}
+  generated_content:
+    description: JSON object of generated content keyed by account ID.
+    value: ${{ steps.generate.outputs.generated_content }}
+
+runs:
+  using: composite
+  steps:
+    - name: Parse release
+      id: parse
+      shell: bash
+      env:
+        POST_ON_PRERELEASE: ${{ inputs.post_on_prerelease }}
+        PRODUCT_NAME: ${{ inputs.product_name }}
+      run: bash "${{ github.action_path }}/scripts/parse-release.sh"
+
+    - name: Generate content
+      id: generate
+      shell: bash
+      env:
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_code_oauth_token }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+        POSTBOOST_API_TOKEN: ${{ inputs.postboost_api_token }}
+        WORKSPACE_UUID: ${{ inputs.workspace_uuid }}
+        RELEASE_CONTEXT: ${{ steps.parse.outputs.release_context }}
+        TONE: ${{ inputs.tone }}
+        PLATFORMS: ${{ inputs.platforms }}
+        EXCLUDE_PLATFORMS: ${{ inputs.exclude_platforms }}
+        HASHTAGS: ${{ inputs.hashtags }}
+        INCLUDE_RELEASE_URL: ${{ inputs.include_release_url }}
+        CUSTOM_INSTRUCTIONS: ${{ inputs.custom_instructions }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: bash "${{ github.action_path }}/scripts/generate-content.sh"
+
+    - name: Post to PostBoost
+      id: post
+      shell: bash
+      env:
+        POSTBOOST_API_TOKEN: ${{ inputs.postboost_api_token }}
+        WORKSPACE_UUID: ${{ inputs.workspace_uuid }}
+        GENERATED_CONTENT: ${{ steps.generate.outputs.generated_content }}
+        ACCOUNTS_JSON: ${{ steps.generate.outputs.accounts_json }}
+        RELEASE_CONTEXT: ${{ steps.parse.outputs.release_context }}
+        SCHEDULING_MODE: ${{ inputs.scheduling_mode }}
+        SCHEDULE_DATE: ${{ inputs.schedule_date }}
+        SCHEDULE_TIME: ${{ inputs.schedule_time }}
+        SCHEDULE_TIMEZONE: ${{ inputs.schedule_timezone }}
+        DRY_RUN: ${{ inputs.dry_run }}
+        RELEASE_TIER: ${{ steps.parse.outputs.release_tier }}
+      run: bash "${{ github.action_path }}/scripts/post-to-postboost.sh"
