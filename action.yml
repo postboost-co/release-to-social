@@ -68,6 +68,10 @@ inputs:
     description: Whether to post for pre-release tags (alpha, beta, rc). Defaults to false.
     required: false
     default: 'false'
+  event_path:
+    description: Path to a custom release event JSON file. Used for testing with workflow_dispatch.
+    required: false
+    default: ''
 
 outputs:
   post_uuid:
@@ -89,6 +93,7 @@ runs:
       env:
         POST_ON_PRERELEASE: ${{ inputs.post_on_prerelease }}
         PRODUCT_NAME: ${{ inputs.product_name }}
+        RELEASE_EVENT_PATH: ${{ inputs.event_path }}
       run: bash "${{ github.action_path }}/scripts/parse-release.sh"
 
     - name: Generate content
