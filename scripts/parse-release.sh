@@ -226,13 +226,13 @@ RELEASE_CONTEXT=$(jq -n \
   }')
 
 # ── Write outputs ─────────────────────────────────────────────────────────────
-# Encode as single line for GITHUB_OUTPUT
-RELEASE_CONTEXT_SINGLE=$(echo "$RELEASE_CONTEXT" | jq -c '.')
+# Write JSON to a temp file — avoids GitHub Actions expression parser corrupting
+# JSON that contains '}}' or other special sequences.
+echo "$RELEASE_CONTEXT" | jq -c '.' > /tmp/release-social-context.json
 
 {
   echo "release_tier=$RELEASE_TIER"
   echo "skip=false"
-  echo "release_context=$RELEASE_CONTEXT_SINGLE"
 } >> "$GITHUB_OUTPUT"
 
 echo "Release context written to output."
