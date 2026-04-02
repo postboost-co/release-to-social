@@ -229,22 +229,18 @@ call_claude_api() {
 
 call_claude_cli() {
   local user_prompt="$1"
-  # Write full prompt (system + user) to a temp file to avoid shell quoting issues
-  local prompt_file
+  local prompt_file result exit_code
   prompt_file=$(mktemp)
   printf '%s\n\n%s' "$SYSTEM_PROMPT" "$user_prompt" > "$prompt_file"
 
-  local result
   result=$(CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
     claude -p "$(cat "$prompt_file")" \
-      --model claude-sonnet-4-20250514 \
-      --max-tokens 4096 \
-      --output-format text 2>&1) || { rm -f "$prompt_file"; echo "CURL_FAILED"; return; }
-
+      --model claude-sonnet-4-20250514 2>&1)
+  exit_code=$?
   rm -f "$prompt_file"
 
-  if echo "$result" | grep -qi "error\|authentication\|unauthorized"; then
-    echo "::warning::Claude CLI returned an error: $result" >&2
+  if [[ $exit_code -ne 0 ]]; then
+    echo "::warning::Claude CLI exited with code $exit_code. Output: $result" >&2
     echo "CURL_FAILED"
     return
   fi
